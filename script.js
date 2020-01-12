@@ -2,7 +2,7 @@ const KEYS = {
 	RIGHT: 37,
 	LEFT: 39,
 	SPACE: 32
-}
+};
 
 let game = {
 	ctx: null,
@@ -13,11 +13,16 @@ let game = {
 	cols: 8,
 	width: 640,
 	height: 360,
+	ranning: true,
+	score: 0,
 	sprites: {
 		background: null,
 		ball: null,
 		platform: null, 
 		block: null
+	},
+	sounds: {
+		bump: null
 	},
 
 	init() {
@@ -31,33 +36,34 @@ let game = {
 			if (e.keyCode === KEYS.SPACE) {
 				this.platform.fire();
 			} else if (e.keyCode === KEYS.RIGHT || e.keyCode === KEYS.LEFT) {
-				this.platform.start(e.keyCode)
+				this.platform.start(e.keyCode);
 			}
 		});
 
 		window.addEventListener('keyup', e => {
-			this.platform.stop()
+			this.platform.stop();
 		});
-
-		
-
-
 	},
 
 
 	preload(callback) {
 		let loaded = 0;
 		let required = Object.keys(this.sprites).length;
-		let onImageLoad = () => {
+		required += Object.keys(this.sounds).length;
+		let onResourseLoad = () => {
 			++loaded;
 			if (loaded >= required) {
 				callback();
-			}
-		}
+			} 
+		};
 		for (let key in this.sprites) {
 			this.sprites[key] = new Image();
 			this.sprites[key].src = `img/${key}.png`;
-			this.sprites[key].addEventListener('load', onImageLoad)
+			this.sprites[key].addEventListener('load', onResourseLoad);
+		};
+		for (let key in this.sounds) {
+			this.sounds[key] = new Audio('sounds/' + key + '.mp3');
+			this.sounds[key].addEventListener('canplaythrough', onResourseLoad, {once: true});
 		}
 
 	}, 
@@ -87,11 +93,26 @@ let game = {
 
 	},
 
+	addScore() {
+		++this.score;
+		if (this.score >= this.blocks.length) {
+			console.log('You win!!!!')
+			game.ranning = false;
+			let tryAgain = confirm('do you want try again?')
+
+			if (tryAgain) {
+				window.location.reload();
+			}
+		}
+	},
+
 	collideBlocks() {
 		this.blocks.forEach(item => {
 			if (item.active) {
 				if (this.ball.collide(item)) {
 					this.ball.bumbBlock(item)
+					this.addScore();
+					this.sounds.bump.play();
 				}
 			}
 
@@ -101,26 +122,32 @@ let game = {
 
 	collidePlatform() {
 		if (this.ball.collide(this.platform)) {
-			this.ball.bumbPlatform(this.platform)
+			this.ball.bumbPlatform(this.platform);
+			this.sounds.bump.play();
 		}
 	},
 
 	render() {
 		this.ctx.clearRect(0, 0, this.width, this.height);
 		this.ctx.drawImage(this.sprites.background, 0, 0);
-		this.ctx.drawImage(this.sprites.ball, 0, 0, this.ball.width, this.ball.height, this.ball.x, this.ball.y, this.ball.width, this.ball.height);
+		this.ctx.drawImage(this.sprites.ball, this.ball.frame * this.ball.width, 0, this.ball.width, this.ball.height, this.ball.x, this.ball.y, this.ball.width, this.ball.height);
 		this.ctx.drawImage(this.sprites.platform, this.platform.x, this.platform.y);
 		this.renderBlocks();
-
+		this.ctx.fillStyle = '#FFFFFF';
+		this.ctx.font = '20px Arial';
+		this.ctx.fillText('Score:' + this.score, 15, 20)
 		
 	},
 
 	run() {
 		//run
 		window.requestAnimationFrame(() => {
-			this.update();
-			this.render();
-			this.run();
+			if (this.ranning) {
+				this.update();
+				this.render();
+				this.run();
+			}
+
 		});
 	},
 
@@ -149,6 +176,7 @@ let game = {
 };
 
 game.ball = {
+	frame: 0,
 	x: 320,
 	y: 280,
 	width: 20,
@@ -160,6 +188,12 @@ game.ball = {
 	start() {
 		this.dy = -this.velocity;
 		this.dx = game.random(-this.velocity, this.velocity);
+		setInterval(() => {
+			++this.frame;
+			if (this.frame > 3) {
+				this.frame = 0;
+			}
+		}, 100)
 	},
 	move() {
 		if (this.dy) {
@@ -194,6 +228,7 @@ game.ball = {
 		}
 
 	},
+
 	collideWorldBounds() {
 		let x = this.x + this.dx;
 		let y = this.y + this.dy;
@@ -211,14 +246,23 @@ game.ball = {
 		if (ballLeft < worldLeft) {
 			this.x = 0;
 			this.dx = this.velocity;
+			game.sounds.bump.play();
 		} else if (ballRight > worldRight) {
 			this.x = worldRight - this.width;
 			this.dx = -this.velocity;
+			game.sounds.bump.play();
 		} else if (ballTop < worldTop) {
 			this.dy = this.velocity;
 			this.y = 0;
+			game.sounds.bump.play();
 		} else if (ballBottom > worldBottom) {
 			console.log('game over')
+			game.ranning = false;
+			let tryAgain = confirm('do you want try again?')
+
+			if (tryAgain) {
+				window.location.reload();
+			}
 		}
 	}
 }
